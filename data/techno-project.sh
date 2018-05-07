@@ -55,6 +55,24 @@ function technoView(){
     exec 3>&-
 }
 
+
+function projectDetailView(){
+    exec 3>&1
+    result=$(dialog --clear --title "More about ${selected_project}" \
+     --yes-label "Showtime !" --no-label "Go back to project list"  --yesno \
+     "Github or TOP_SECRET
+        one sentence summary
+        description:
+            what ?
+            user ?
+            how ?
+            with who ?" 30 100 2>&1 1>&3)
+
+    return_value=$?
+    exec 3>&-
+}
+
+
 function projectView(){
 
     # if none or at least 'all' technos selected, same as 'all' selected alone
@@ -154,8 +172,7 @@ projectController(){
       $DIALOG_OK)
         echo "selected project $result"
         selected_project=$result
-        #TODO
-        echo "TODO go to project detail"
+        projectDetailController
         ;;
       $DIALOG_CANCEL)
         technoController
@@ -166,10 +183,26 @@ projectController(){
     esac
 }
 
+projectDetailController(){
+    projectDetailView
+
+    case $return_value in
+      $DIALOG_OK)
+        echo "Show time !"
+        ;;
+      $DIALOG_CANCEL)
+        echo "Cancel pressed (projectDetailView)"
+        projectController
+        ;;
+      $DIALOG_ESC)
+          echo "ESC pressed (projectDetailView)"
+          exit 0;;
+    esac
+}
 
 
 technoController
 
-#TODO projectDetailView and projectDetailController
+
 
 
