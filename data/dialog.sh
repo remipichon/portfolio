@@ -12,26 +12,9 @@ And me ?
 
 " 40 80
 
-#   technologies list
-dialog --clear --title " Bunch of technologies" \
---ok-label "see project" --checklist \
-"Following is a list of the most needed technologies in modern software companies
-Please select at least one to see the related projects I did
-" 40 80 10 \
-    docker "Docker" off \
-    gitlab "Gitlab 8 with CI" off \
-    swarm "Docker Swarm" off \
-    k8s "Kubernetes" off \
-    all "Or go to the projects list" off
 
-#   projects page
-dialog --clear --title "All the cool projects I did" \
---ok-label "Project detail" --radiolist \
-"Please select one to see the details
-" 40 80 10 \
-  voc "VOC: automatic deployment for Swarm based on Gitlab CI (ready to deploy on Amazon)" off \
-  mm "ManifMaker: stuff to assign" off \
-  android "24Heures Android app" off
+
+
 
 #   project page
 dialog --clear --title "More about VOC" \
