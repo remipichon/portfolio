@@ -62,7 +62,6 @@ instantiateVocConfigurationRepo(){
 
     git clone "http://${username}:${password}@gitlab.remip.eu/${username}/${repo}.git"
     cd ${repo}
-    rm -rf *
     cp -af ${datadir}/wae_voc/. .
     git add --all
     git commit -m "add VOC configuration to build and deploy WAE"
@@ -71,7 +70,7 @@ instantiateVocConfigurationRepo(){
 
 function dialog_message(){
     dialog --title "Showtime ! Build and deploy WhatStat on VOC" \
-    --timeout 2 --msgbox "$1" 40 80 2> /dev/null
+    --timeout 200 --msgbox "$1" 40 80 2> /dev/null
 }
 ############################
 ##  Main
@@ -97,14 +96,14 @@ root_api_token=$(readApiToken 'root' 'rootroot')
 
 echo "Root api token is $root_api_token"
 
-#echo "          $(createGitlabUser $new_user_name $new_user_password $new_user_email)"
+dialog_message "          $(createGitlabUser $new_user_name $new_user_password $new_user_email)"
 echo "existing users: "
-#echo $(queryGitlabApi $root_api_token '/users') | jq '.[].name'
+dialog_message $(queryGitlabApi $root_api_token '/users') | jq '.[].name'
 
 #user_api_token=$(readApiToken $new_user_name $new_user_password)
 echo "New user api token is $user_api_token"
 
-#echo "          $(createGitlabProject $user_api_token $new_user_repo)"
+dialog_message "          $(createGitlabProject $user_api_token $new_user_repo)"
 
 #instantiateVocConfigurationRepo $new_user_name $new_user_password $new_user_email $new_user_repo
 
