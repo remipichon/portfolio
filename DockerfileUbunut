@@ -1,4 +1,4 @@
 FROM ubuntu
-RUN apt-get update; apt-get install dialog;
+RUN apt-get update; apt-get install -y dialog curl jq git;
 RUN echo "ls" > /var/dialog.sh; chmod 777 /var/dialog.sh
 ENTRYPOINT bash /var/dialog.sh
