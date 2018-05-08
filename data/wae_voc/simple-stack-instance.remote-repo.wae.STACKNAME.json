@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "repo": "whatsappelastic",
+  "parameters": [
+    {
+      "name": "public_access",
+      "value": "PUBLIC_ACCESS_VALUE"
+    },
+    {
+      "name": "virtual_host",
+      "value": "VIRTUAL_HOST_VALUE"
+    },
+    {
+      "name": "public_port",
+      "value": "PUBLIC_PORT_VALUE"
+    }
+  ]
+}

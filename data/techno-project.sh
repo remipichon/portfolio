@@ -227,10 +227,10 @@ projectDetailController(){
 }
 
 
-#technoController
+technoController
 
-selected_project=toast
-projectDetailController
+#selected_project=toast
+#projectDetailController
 
 
 
