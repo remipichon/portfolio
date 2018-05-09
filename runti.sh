@@ -1,2 +1,2 @@
 clear
-docker run --rm -ti --entrypoint= -v $(pwd)/data:/var dialog sh
+docker run --rm -ti --entrypoint= -v $(pwd)/data:/var portfolio sh

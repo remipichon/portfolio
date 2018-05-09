@@ -1,2 +1,2 @@
 clear
-docker run --rm -ti dialog
+docker run --rm -ti portfolio
