@@ -1,4 +1,7 @@
 FROM alpine
-RUN apk update; apk add dialog;
-RUN echo "ls" > /var/dialog.sh; chmod 777 /var/dialog.sh
-ENTRYPOINT sh /var/dialog.sh
+MAINTAINER Remi P <pichon.remi.pr@gmail.com>
+
+RUN apk update; apk --no-cache add dialog jq curl bash git;
+COPY --chown=root data var
+WORKDIR /var
+ENTRYPOINT sh /var/portfolio.sh

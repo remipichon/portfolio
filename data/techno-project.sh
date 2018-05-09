@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# define data
+# Define data
 declare -A techno_projects
 declare -A desc_projects
 declare -A detail_projects
@@ -16,7 +16,9 @@ Voc is so easy to enable. If you already have a Gitlab 8 and a Gitlab Runner def
 Voc is stunning by its simplicity. With a few configuration in json format you can build and push images and deploy from docker compose file. Voc is awesome, yes, but it's partly because it uses another wonderful tool; Gitlab with CI enable. Each time a config or any Docker related files is committed, the Voc Runner App is triggered to apply just what it needs, smartly detecting with files are related to which Voc instance. So smart, it also monitor the context or your configured images via Dockerfile and can build and deploy your master branch each time a merge request is accepted.
 Voc should start making the coffee, let's create a feature request...
 
-But first, would you like to see it live? Better, to see it being provisioned on Amazon Web Service via Terraform then Ansible? Hit Showtime !"
+But first, would you like to see it live? Go back to 'technos list' and hit 'Showtime !'
+
+"
 
 techno_projects[manifmaker]="node front"
 desc_projects[manifmaker]="ManifMaker: stuff to assign"
@@ -65,7 +67,7 @@ function technoView(){
     exec 3>&1
 
     result=$(dialog --clear --title " Bunch of technologies" \
-    --ok-label "See related projects" --cancel-label "Go back home" --checklist \
+    --ok-label "See related projects" --cancel-label "Exit" --checklist \
     "Following is a list of some of the most vibrant technologies used amongst successful companies making earning unicorns per quarters.
     Please select at least one to see details about some projects I work on using those mind blowing state of art nicely packaged computer binaries.
     " 30 100 40 \
@@ -79,7 +81,8 @@ function technoView(){
         elastic "ElasticSearch" off \
         python "Python" off \
         front "Frontend JS" off \
-        all "Or go to the projects list" off 2>&1 1>&3)
+        all "Or go to the projects list" off \
+        showtime "What about some Showtime !" off 2>&1 1>&3)
 
     # Get dialog's exit status
     return_value=$?
@@ -91,16 +94,14 @@ function technoView(){
 function projectDetailView(){
     exec 3>&1
     result=$(dialog --clear --title "More about ${selected_project}" \
-     --yes-label "Showtime !" --no-label "Go back to project list"  --yesno \
+     --yes-label "Go back to technos list" --no-label "Go back to project list"  --yesno \
      "${detail_projects["${selected_project}"]}" 30 100 2>&1 1>&3)
 
     return_value=$?
     exec 3>&-
 }
 
-
 function projectView(){
-
     # if none or at least 'all' technos selected, same as 'all' selected alone
     if [[ "${selected_techos}" == "" ]] || [[ "${selected_techos}" == *"all"* ]] ; then
         echo "selected_techos either empty or contains 'all'"
@@ -109,7 +110,7 @@ function projectView(){
        IFS=' ' read -r -a selected_technos_array <<< "$selected_techos"
     fi
 
-    # compute projects to display according to selected technos
+    # compute projects to be displayed according to selected technos
     declare -A selected_projects
     for i in "${!techno_projects[@]}"
     do
@@ -127,7 +128,6 @@ function projectView(){
     while [ -z "$result" ]
     do
         exec 3>&1
-
         # compute title
         if [[ "$selected_technos_array" != "" ]] && [[ "$selected_technos_array" != "all" ]]; then
             title="Displayed are all the projects that used one of the selected technos:
@@ -163,15 +163,14 @@ Please select one to see the details"
         exec 3>&-
         case $return_value in
         $DIALOG_CANCEL)
-            echo "Cancel pressed (displayProjects)"
+            echo "Cancel pressed (projectView in)"
             return;;
         $DIALOG_ESC)
-            echo "ESC pressed (displayProjects)"
+            echo "ESC pressed (projectView in)"
             return;;
         esac
     done
 }
-
 
 function technoController(){
     technoView
@@ -180,18 +179,23 @@ function technoController(){
       $DIALOG_OK)
         echo "selected technos $result"
         selected_techos=$result
-        projectController
+        if [[ "${selected_techos}" == *"showtime"* ]] ; then
+            ./showtime_wae_on_voc.sh
+        else
+            projectController
+        fi
         ;;
       $DIALOG_CANCEL)
-        echo "Cancel pressed (displayTechos)"
+        clear
+        echo "Bye, don't forget to drop me a message on https://www.linkedin.com/in/remipichon/"
         exit 0;;
       $DIALOG_ESC)
-          echo "ESC pressed (displayTechos)"
+          echo "ESC pressed (technoView)"
           exit 0;;
     esac
 }
 
-projectController(){
+function projectController(){
     projectView
 
     case $return_value in
@@ -204,17 +208,17 @@ projectController(){
         technoController
         ;;
       $DIALOG_ESC)
-          echo "ESC pressed (displayProjects)"
+          echo "ESC pressed (projectView)"
           exit 0;;
     esac
 }
 
-projectDetailController(){
+function projectDetailController(){
     projectDetailView
 
     case $return_value in
       $DIALOG_OK)
-        echo "Show time !"
+        technoController
         ;;
       $DIALOG_CANCEL)
         echo "Cancel pressed (projectDetailView)"
@@ -226,12 +230,4 @@ projectDetailController(){
     esac
 }
 
-
 technoController
-
-#selected_project=toast
-#projectDetailController
-
-
-
-

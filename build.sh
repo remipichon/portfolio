@@ -1,1 +1,1 @@
- docker build -t dialog .
+docker build -t portfolio .

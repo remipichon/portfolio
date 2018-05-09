@@ -146,7 +146,6 @@ mkdir -p $wordir
 cd $wordir
 
 askParams
-debugParameters
 
 echo ""
 echo "Configuration is done, here is a summary"
@@ -154,7 +153,6 @@ echo "      Using VOC running on '${gitlab_host}', WhatStat will be deployed via
 echo ""
 echo "Now, lets appreciate..."
 echo ""
-
 
 echo "Using the root password to retrieve root token"
 root_api_token=$(readApiToken 'root' 'rootroot')
@@ -228,3 +226,9 @@ echo "
     If you want to have fun, please edit the VOC configuration to 'enable: false' in order to release my really small server resources.
     Gitlab might crash if you deploy to much stacks because my server is a patato really small VPS intended for demo purposes.
 "
+
+echo "****************************"
+echo "done, press any key come back to the technos list"
+read n
+
+/bin/bash /var/techno-project.sh

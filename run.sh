@@ -1,2 +1,2 @@
 clear
-docker run --rm -ti -v $(pwd)/data:/var dialog
+docker run --rm -ti dialog
