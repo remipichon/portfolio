@@ -1,5 +1,45 @@
 #!/bin/bash
 
+function askParams(){
+    default_gitlab_host=gitlab.remip.eu
+    echo "Welcome to the wizard that will guide you through the process on building and deploying WhatStat, a Java based web app. All parameters are mandatory and not checked for null, please fill them ;)
+    If I gave you the root password to my ${default_gitlab_host}, then you can proceed.
+    Else, you might want to deploy VOC on Amazon Web Service and use it to deploy WhatStat.
+    You can also build it and deploy it yourself using the given Dockerfiles and Docker Composes https://github.com/remipichon/WhatsAppElastic#install"
+    echo ""
+    echo "To start, I need a few parameters: "
+    read -p "   confirm the hostname ${default_gitlab_host} (press enter) or override it with your own VOC (type it!): " given
+    gitlab_host=${given:-$default_gitlab_host}
+
+    printf "   Gitlab root password to create a user: "
+    read -s gitlab_root_password
+    echo ""
+
+    echo "A demo user will be created, you are free to name it the way you want"
+    read -p "   Demo user name: " new_user_name
+    printf "   Demo user password: "
+    read -s new_user_password
+    echo ""
+    read -p "   Demo user email: " new_user_email
+    read -p "   Demo repository: " new_user_repo
+    echo ""
+
+    echo "Now, I would like some details about the WhatStat you are going to deploy:"
+    read -p "   Deployed WhatStat stack name (given to 'docker stack deploy) ? " stack_name
+    read -p "   Do you have a A DNS record pointing to '164.132.42.48' or to 'gitlab.remip.eu' ? Y\N " yesno
+    if [ "$yesno" == "Y" ] || [ "$yesno" == "y" ]; then
+        read -p "       DNS record that will be redirected to the WhatStat you are deploying: " virtual_host
+    else
+        public_port=$(shuf -i 30000-34000 -n 1)
+        echo "        Without DNS records, the only way to access WhatStat is via a port mapping, a random one has been choosen for you"
+    fi
+
+    if [[ "$stack_name" == "wae" ]]; then
+        echo "Sorry, 'wae' is not accepted as it would remove the live demo of WhatStat"
+        exit 1
+    fi
+}
+
 readApiToken(){
     gitlab_root_username=$1
     gitlab_root_password=$2
@@ -81,6 +121,20 @@ function dialog_message(){
     dialog --title "Showtime ! Build and deploy WhatStat on VOC" \
     --timeout 200 --msgbox "$1" 40 80 2> /dev/null
 }
+
+function debugParameters(){
+    echo "gitlab_root_password $gitlab_root_password"
+    echo "new_user_name $new_user_name"
+    echo "new_user_password $new_user_password"
+    echo "new_user_email $new_user_email"
+    echo "new_user_repo $new_user_repo"
+    echo "gitlab_host $gitlab_host"
+    echo "virtual_host $virtual_host"
+    echo "public_access $public_access"
+    echo "public_port $public_port"
+    echo "stack_name $stack_name"
+}
+
 ############################
 ##  Main
 ############################
@@ -88,72 +142,11 @@ clear
 
 wordir=/sandbox/
 datadir=$(pwd)
-
 mkdir -p $wordir
 cd $wordir
 
-default_gitlab_host=gitlab.remip.eu
-
-## deploy the real WAE
-#gitlab_root_password=rootroot
-#new_user_name=wae_user
-#new_user_password=wae_user
-#new_user_email=wae_user@mail.com
-#new_user_repo=wae_config
-#gitlab_host=$default_gitlab_host
-#virtual_host=whatstat.remip.eu   # for the proxy, to access wae
-#public_port=    #if no DNS records, use public port
-#stack_name=wae
-#
-## deploy the demo WAE
-gitlab_root_password=rootroot
-new_user_name=demo_user3
-new_user_password=demo_user3
-new_user_email=demo_user@mail.com
-new_user_repo=demo_wae_config3
-gitlab_host=$default_gitlab_host
-virtual_host=
-public_access=
-public_port=30200
-stack_name=demo_wae3
-
-
-#echo "Welcome to the wizard that will guide you through the process on building and deploying WhatStat, a Java based web app.
-#If I gave you the root password to my ${default_gitlab_host}, then you can proceed.
-#Else, you might want to deploy VOC on Amazon Web Service and use it to deploy WhatStat.
-#You can also use the build it and deploy it yourself using the given Dockerfiles and Docker Composes. "
-#echo ""
-#echo "To start, I need a few parameters: "
-#read -p "   confirm the hostname ${default_gitlab_host} (press enter) or override it with your own VOC (type it!): " given
-#gitlab_host=${given:-$default_gitlab_host}
-#
-#printf "   Gitlab root password to create a user: "
-#read -s gitlab_root_password
-#echo ""
-#
-#echo "A demo user will be created, you are free to name it the way you want"
-#read -p "   Demo user name: " new_user_name
-#printf "   Demo user password: "
-#read -s new_user_password
-#echo ""
-#read -p "   Demo user email: " new_user_email
-#read -p "   Demo repository: " new_user_repo
-#echo ""
-#
-#echo "Now, I would like some details about the WhatStat you are going to deploy:"
-#read -p "   Deployed WhatStat stack name (given to 'docker stack deploy) ? " stack_name
-#read -p "   Do you have a A DNS record pointing to '164.132.42.48' or to 'gitlab.remip.eu' ? Y\N " yesno
-#if [ "$yesno" == "Y" ] || [ "$yesno" == "y" ]; then
-#    read -p "       DNS record that will be redirected to the WhatStat you are deploying: " virtual_host
-#else
-#    public_port=$(shuf -i 30000-34000 -n 1)
-#    echo "        Without DNS records, the only way to access WhatStat is via a port mapping, a random one has been choosen for you"
-#fi
-#
-#if [[ "$stack_name" == "wae" ]]; then
-#    echo "Sorry, 'wae' is not accepted as it would remove the live demo of WhatStat"
-#    exit 1
-#fi
+askParams
+debugParameters
 
 echo ""
 echo "Configuration is done, here is a summary"
@@ -161,6 +154,7 @@ echo "      Using VOC running on '${gitlab_host}', WhatStat will be deployed via
 echo ""
 echo "Now, lets appreciate..."
 echo ""
+
 
 echo "Using the root password to retrieve root token"
 root_api_token=$(readApiToken 'root' 'rootroot')
@@ -192,7 +186,7 @@ echo "Everything is configured, time to chill out and appreciate what have been 
          finally the artifact to retrieve the result in json format
 
       * repo.whatsappelastic.json: defines a VOC resource to explain where to find the code to build. It supports SSH credentials as well
-      * simple-stack-instance.remote-repo.wae.wae.json: defines a VOC resource to build and instantiate a stack. Let's break it down
+      * simple-stack-instance.remote-repo.wae.${stack_name}.json: defines a VOC resource to build and instantiate a stack. Let's break it down
          simple-stack-instance      this instance directly refers a docker compose, VOC support stack definitions to assemble several docker compose in one stack
          .remote-repo               the Dockerfile, Compose files and potentially context for the build are to be found on a separate repo, not the VOC one. VOC supports code coming from itself or from an external repo.
          .wae                       the Docker Compose to look for is named docker-compose.wae.yml and is in the remote repo. Which repo is defined in the file
@@ -205,15 +199,20 @@ echo "Everything is configured, time to chill out and appreciate what have been 
 
     And it's not done, VOC doesn't only build and deploy, it comes with some other features critical for hosting web app.
 
-    It provides an Nginx with service discovery to proxy requests to your service.
-    \"Provided your DNS is setup to forward foo.bar.com to the host running nginx-proxy, the request will be routed to a container with the VIRTUAL_HOST env var set.\"
-    from https://github.com/jwilder/nginx-proxy"
-if [ -z "$virtual_host" ]; then
+    It provides a Nginx with service discovery to proxy requests to your service.
+        \"Provided your DNS is setup to forward foo.bar.com to the host running nginx-proxy, the request will be routed to a container with the VIRTUAL_HOST env var set.\"
+    from https://github.com/jwilder/nginx-proxy
+    "
+if [  "$virtual_host" != "" ]; then
     echo "    You can access your WhatStat on the DNS record you provided ${virtual_host}/${stack_name}/legacy."
 else
-    echo "    You can access your WhatStat on the public port generated for you ${gitlab_host}:${public_port}"
+    echo "    You didn't provide a virtual host but you can access your WhatStat on the public port generated for you ${gitlab_host}:${public_port}/legacy
+    Later on, you can edit simple-stack-instance.remote-repo.wae.${stack_name}.json and set the 'virtual_host' to your DNS record.
+    You can also set 'public_port' to empty to disable port forwarding."
 fi
 echo "
+    The /legacy UI allows you to upload your Whatsapp chat. If you set up email you can directly send your conversation by email to WhatStat.
+
     It also provides forwarding incoming emails to the HTTP endpoint of your choice.
     It used the npm package mailin: https://www.npmjs.com/package/mailin
 
@@ -221,10 +220,11 @@ echo "
         * DNS A to gitlab.remip.eu
         * DNS MX record see DNS configuration https://www.npmjs.com/package/mailin#the-crux-setting-up-your-dns-correctly
 
-    If not, WhatStat is running configured at http://whatstat.remip.eu/, go take a look an try out sending a chat.
+    You can see WhatStat is action at http://whatstat.remip.eu/, go take a look an try out sending a chat to whatstat@mail.remip.eu !
+    Everything is explained on the UI.
 
     Hope it worked for you, hope you liked it and are now interested in either VOC or WhatStat.
 
     If you want to have fun, please edit the VOC configuration to 'enable: false' in order to release my really small server resources.
-    Gitlab might crash if you deploy to much because my server is a patato really small VPS.
+    Gitlab might crash if you deploy to much stacks because my server is a patato really small VPS intended for demo purposes.
 "
