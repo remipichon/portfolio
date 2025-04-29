@@ -16,7 +16,7 @@ var (
 func TestMain(m *testing.M) {
 	// Custom flag to keep resources
 	flag.BoolVar(&keepResources, "keep-resources", false, "Keep test resources after test run")
-	flag.BoolVar(&tearDown, "tear-down", false, "Attempt to delete resources before testing, in case of leftovers")
+	flag.BoolVar(&tearDown, "tear-down", false, "Attempt to deleteJobAndWaitForDeletion resources before testing, in case of leftovers")
 	flag.Parse()
 
 	if tearDown {

@@ -1,4 +1,4 @@
-package main
+package kube
 
 func newTrue() *bool {
 	b := true

@@ -1,4 +1,5 @@
-package main
+// Package kube implements service methods to manage Kubernetes Jobs
+package kube
 
 import (
 	"context"
@@ -18,11 +19,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type KubeService struct {
+// Service provides helper methods to interact with Kubernetes Jobs.
+type Service struct {
 	kubeClient *kubernetes.Clientset
 }
 
-func (ks *KubeService) InitClient() {
+// InitClient instantiate a Kubernetes client based on local Kubeconfig
+func (ks *Service) InitClient() {
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -43,8 +46,8 @@ func (ks *KubeService) InitClient() {
 
 }
 
-// list Jobs with annotation 'job-assistant' set to true
-func (ks *KubeService) list() ([]batchv1.Job, error) {
+// List lists Jobs with annotation 'job-assistant' set to true on any namespace
+func (ks *Service) List() ([]batchv1.Job, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -62,17 +65,8 @@ func (ks *KubeService) list() ([]batchv1.Job, error) {
 	return filtered, nil
 }
 
-func (ks *KubeService) status(namespace, name string) (error, *batchv1.JobStatus) {
-	job, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), name, metav1.GetOptions{})
-	if err != nil {
-		return err, nil
-	}
-
-	return nil, &job.Status
-}
-
-// run a Job, handle Suspend:true and re-create when needed
-func (ks *KubeService) run(namespace, name string) error {
+// Run runs a Job, fails if already running, handle Suspend:true and clean re-create when needed
+func (ks *Service) Run(namespace, name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -92,106 +86,29 @@ func (ks *KubeService) run(namespace, name string) error {
 		return err
 	}
 
-	// suspended=false or absent, delete Job then recreate it
-	err = ks.delete(namespace, job.Name)
+	// suspended=false or absent, deleteJobAndWaitForDeletion Job then recreate it
+	err = ks.deleteJobAndWaitForDeletion(namespace, job.Name)
 	if err != nil {
 		return err
 	}
 
-	_, err = ks.kubeClient.BatchV1().Jobs(namespace).Create(ctx, CleanJobForRecreate(job), metav1.CreateOptions{})
+	_, err = ks.kubeClient.BatchV1().Jobs(namespace).Create(ctx, cleanJobForRecreate(job), metav1.CreateOptions{})
 	return err
 }
 
-func isJobRunning(status batchv1.JobStatus) bool {
-	if status.StartTime == nil {
-		return false // Not pod scheduled, not even started yet
-	}
-
-	for _, cond := range status.Conditions {
-		if (cond.Type == batchv1.JobComplete || cond.Type == batchv1.JobFailed) && cond.Status == corev1.ConditionTrue {
-			return false // Already completed or failed
-		}
-	}
-
-	return true // Started and not complete/failed yet
-}
-
-// CleanJobForRecreate returns a clean copy of the given Job, ready for recreation.
-func CleanJobForRecreate(original *batchv1.Job) *batchv1.Job {
-	job := original.DeepCopy()
-
-	// Clean metadata: remove fields that must not be reused
-	job.ResourceVersion = ""
-	job.UID = ""
-	job.Generation = 0
-	job.CreationTimestamp = metav1.Time{}
-	job.ManagedFields = nil
-	job.SelfLink = ""
-	job.Finalizers = nil      // optional: clear if you don't want old finalizers
-	job.OwnerReferences = nil // optional: clear if you don't want old owners
-
-	// Status must be empty
-	job.Status = batchv1.JobStatus{}
-
-	// Fix selector + pod template labels
-	ensureJobSelectorMatchesTemplate(job)
-
-	return job
-}
-
-func ensureJobSelectorMatchesTemplate(job *batchv1.Job) {
-	// reset the selectors if not set by the user as Kubernetes set automatically
-	// set some (targeting a specific node id)
-	if job.Spec.Selector == nil {
-		job.Spec.Selector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{},
-		}
-	}
-	if job.Spec.Template.Labels == nil {
-		job.Spec.Template.Labels = map[string]string{}
-	}
-
-	// since we are now setting the selector ourselves
-	job.Spec.ManualSelector = pointer.Bool(true)
-
-	// we have to mimic what Kubernetes is doing automatically
-	jobNameLabel := "job-name" // how Kubernetes links Jobs to Pods, it's standard
-
-	if _, ok := job.Spec.Selector.MatchLabels[jobNameLabel]; !ok {
-		job.Spec.Selector.MatchLabels[jobNameLabel] = job.Name
-	}
-	job.Spec.Template.Labels[jobNameLabel] = job.Name
-}
-
-// TODO understand the benefits of context timeout and for loop time.NOw timeout
-func (ks *KubeService) delete(namespace, name string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) //TODO configure deletion timeout
-	defer cancel()
-
-	policy := metav1.DeletePropagationForeground
-	err := ks.kubeClient.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
-		PropagationPolicy: &policy,
-	})
+// Status returns the full Kubernetes status of job, without any decoration
+func (ks *Service) Status(namespace, name string) (error, *batchv1.JobStatus) {
+	job, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
-		return err
+		return err, nil
 	}
 
-	// wait for actual full deletion
-	for {
-		_, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
-		if errors.IsNotFound(err) {
-			break
-		}
-		if ctx.Err() != nil {
-			return fmt.Errorf("timed out waiting for job deletion: %v", ctx.Err())
-		}
-		time.Sleep(200 * time.Millisecond) // polling interval
-	}
-
-	return nil
+	return nil, &job.Status
 }
 
-func (ks *KubeService) kill(namespace, name string) error {
+// Kill suspends the Job and delete all of its running pod
+// TODO kill pods to keep them and their logs instead of deleteJobAndWaitForDeletion
+func (ks *Service) Kill(namespace, name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) //TODO configure deletion timeout
 	defer cancel()
 	//Job is kept for later usage
@@ -203,7 +120,7 @@ func (ks *KubeService) kill(namespace, name string) error {
 		return err
 	}
 
-	// delete the pods by labels
+	// deleteJobAndWaitForDeletion the pods by labels
 	err = ks.kubeClient.CoreV1().Pods(namespace).DeleteCollection(
 		ctx,
 		metav1.DeleteOptions{},
@@ -233,4 +150,93 @@ func (ks *KubeService) kill(namespace, name string) error {
 	}
 
 	return nil
+}
+
+func (ks *Service) deleteJobAndWaitForDeletion(namespace, name string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) //TODO configure deletion timeout
+	defer cancel()
+
+	policy := metav1.DeletePropagationForeground
+	err := ks.kubeClient.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
+		PropagationPolicy: &policy,
+	})
+	if err != nil {
+		return err
+	}
+
+	// wait for actual full deletion
+	for {
+		_, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			break
+		}
+		if ctx.Err() != nil {
+			return fmt.Errorf("timed out waiting for job deletion: %v", ctx.Err())
+		}
+		time.Sleep(200 * time.Millisecond) // polling interval
+	}
+
+	return nil
+}
+
+func isJobRunning(status batchv1.JobStatus) bool {
+	if status.StartTime == nil {
+		return false // Not pod scheduled, not even started yet
+	}
+
+	for _, cond := range status.Conditions {
+		if (cond.Type == batchv1.JobComplete || cond.Type == batchv1.JobFailed) && cond.Status == corev1.ConditionTrue {
+			return false // Already completed or failed
+		}
+	}
+
+	return true // Started and not complete/failed yet
+}
+
+// cleanJobForRecreate returns a clean copy of the given Job, ready for recreation.
+func cleanJobForRecreate(original *batchv1.Job) *batchv1.Job {
+	job := original.DeepCopy()
+
+	// Clean metadata: remove fields that must not be reused
+	job.ResourceVersion = ""
+	job.UID = ""
+	job.Generation = 0
+	job.CreationTimestamp = metav1.Time{}
+	job.ManagedFields = nil
+	job.SelfLink = ""
+	job.Finalizers = nil      // optional: clear if you don't want old finalizers
+	job.OwnerReferences = nil // optional: clear if you don't want old owners
+
+	// Status must be empty
+	job.Status = batchv1.JobStatus{}
+
+	// Fix selector + pod template labels
+	ensureJobSelectorMatchesTemplate(job)
+
+	return job
+}
+
+// ensureJobSelectorMatchesTemplate deals with spec.selector :
+// keep the ones set by the user
+// mimic Kubernetes selector 'job-name'
+func ensureJobSelectorMatchesTemplate(job *batchv1.Job) {
+	if job.Spec.Selector == nil {
+		job.Spec.Selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{},
+		}
+	}
+	if job.Spec.Template.Labels == nil {
+		job.Spec.Template.Labels = map[string]string{}
+	}
+
+	// since we are now setting the selector ourselves
+	job.Spec.ManualSelector = pointer.Bool(true)
+
+	// we have to mimic what Kubernetes is doing automatically
+	jobNameLabel := "job-name" // how Kubernetes links Jobs to Pods, it's standard
+
+	if _, ok := job.Spec.Selector.MatchLabels[jobNameLabel]; !ok {
+		job.Spec.Selector.MatchLabels[jobNameLabel] = job.Name
+	}
+	job.Spec.Template.Labels[jobNameLabel] = job.Name
 }

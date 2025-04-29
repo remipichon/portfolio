@@ -1,5 +1,5 @@
 // integration_test.go
-package main
+package kube
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 type KubeServiceIntegrationTestSuite struct {
 	suite.Suite
 	// KubeClient to check resources right in the test (should be used very lightly, prefer the app service)
-	ks *KubeService
+	ks *Service
 	// create all namespaced resources in this one
 	Namespace string
 	// to easily cleanup resources, make sure to create all resources with these
@@ -35,7 +35,7 @@ func (s *KubeServiceIntegrationTestSuite) SetupSuite() {
 	s.Namespace = "kja-test-namespace"
 
 	// init Kube client
-	s.ks = &KubeService{}
+	s.ks = &Service{}
 	s.ks.InitClient()
 
 	if tearDown {
@@ -61,7 +61,7 @@ func (s *KubeServiceIntegrationTestSuite) TearDownTest() {
 		return
 	}
 
-	//delete all created jobs and wait for complete deletion to isolate test cases
+	//deleteJobAndWaitForDeletion all created jobs and wait for complete deletion to isolate test cases
 	policy := metav1.DeletePropagationForeground
 	err := s.ks.kubeClient.BatchV1().Jobs(s.Namespace).DeleteCollection(
 		context.Background(),
@@ -107,7 +107,7 @@ func (s *KubeServiceIntegrationTestSuite) TearDownSuite() {
 
 	// A. Namespace
 	err := s.ks.kubeClient.CoreV1().Namespaces().Delete(ctx, s.Namespace, metav1.DeleteOptions{})
-	s.Require().NoError(err, "failed to delete namespace")
+	s.Require().NoError(err, "failed to deleteJobAndWaitForDeletion namespace")
 
 	fmt.Println("Wait for namespace to be deleted (timeout 30s) run 'go test -tear-down' to keep trying if it times out: ", s.Namespace)
 	end := time.Now().Add(time.Second * time.Duration(30)) //TODO export timeout
