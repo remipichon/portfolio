@@ -24,7 +24,7 @@ type Service struct {
 	kubeClient *kubernetes.Clientset
 }
 
-// InitClient instantiate a Kubernetes client based on local Kubeconfig
+// InitClient instantiate a Kubernetes client based on local kubeconfig.
 func (ks *Service) InitClient() {
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
@@ -46,7 +46,7 @@ func (ks *Service) InitClient() {
 
 }
 
-// List lists Jobs with annotation 'job-assistant' set to true on any namespace
+// List lists Jobs with annotation 'job-assistant' set to true on any namespace.
 func (ks *Service) List() ([]batchv1.Job, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -65,12 +65,12 @@ func (ks *Service) List() ([]batchv1.Job, error) {
 	return filtered, nil
 }
 
-// Run runs a Job, fails if already running, handle Suspend:true and clean re-create when needed
-func (ks *Service) Run(namespace, name string) error {
+// Run runs a Job, fails if already running, handle Suspend:true and clean re-create when needed.
+func (ks *Service) Run(namespace, jobName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	job, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+	job, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -96,9 +96,9 @@ func (ks *Service) Run(namespace, name string) error {
 	return err
 }
 
-// Status returns the full Kubernetes status of job, without any decoration
-func (ks *Service) Status(namespace, name string) (error, *batchv1.JobStatus) {
-	job, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), name, metav1.GetOptions{})
+// Status returns the full Kubernetes status of job, without any decoration.
+func (ks *Service) Status(namespace, jobName string) (error, *batchv1.JobStatus) {
+	job, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	if err != nil {
 		return err, nil
 	}
@@ -106,16 +106,17 @@ func (ks *Service) Status(namespace, name string) (error, *batchv1.JobStatus) {
 	return nil, &job.Status
 }
 
-// Kill suspends the Job and delete all of its running pod
-// TODO kill pods to keep them and their logs instead of deleteJobAndWaitForDeletion
-func (ks *Service) Kill(namespace, name string) error {
+// Kill suspends the Job and delete all of its running pod.
+//
+// TODO kill pods (to keep them and their logs) instead of deleting pods
+func (ks *Service) Kill(namespace, jobName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) //TODO configure deletion timeout
 	defer cancel()
 	//Job is kept for later usage
 
 	// suspend the Job to prevent Kubernetes from recreating the pods
 	patch := []byte(`{"spec":{"suspend":true}}`)
-	_, err := ks.kubeClient.BatchV1().Jobs(namespace).Patch(ctx, name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err := ks.kubeClient.BatchV1().Jobs(namespace).Patch(ctx, jobName, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		return err
 	}
@@ -125,7 +126,7 @@ func (ks *Service) Kill(namespace, name string) error {
 		ctx,
 		metav1.DeleteOptions{},
 		metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("job-name=%s", name),
+			LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 		},
 	)
 	if err != nil {
@@ -135,7 +136,7 @@ func (ks *Service) Kill(namespace, name string) error {
 	// wait for actual pods deletion
 	for {
 		pods, getPodErr := ks.kubeClient.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("job-name=%s", name),
+			LabelSelector: fmt.Sprintf("job-name=%s", jobName),
 		})
 		if getPodErr != nil {
 			return getPodErr
@@ -152,12 +153,12 @@ func (ks *Service) Kill(namespace, name string) error {
 	return nil
 }
 
-func (ks *Service) deleteJobAndWaitForDeletion(namespace, name string) error {
+func (ks *Service) deleteJobAndWaitForDeletion(namespace, jobName string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second) //TODO configure deletion timeout
 	defer cancel()
 
 	policy := metav1.DeletePropagationForeground
-	err := ks.kubeClient.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
+	err := ks.kubeClient.BatchV1().Jobs(namespace).Delete(ctx, jobName, metav1.DeleteOptions{
 		PropagationPolicy: &policy,
 	})
 	if err != nil {
@@ -166,7 +167,7 @@ func (ks *Service) deleteJobAndWaitForDeletion(namespace, name string) error {
 
 	// wait for actual full deletion
 	for {
-		_, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(ctx, name, metav1.GetOptions{})
+		_, err := ks.kubeClient.BatchV1().Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 		if errors.IsNotFound(err) {
 			break
 		}
@@ -217,8 +218,8 @@ func cleanJobForRecreate(original *batchv1.Job) *batchv1.Job {
 }
 
 // ensureJobSelectorMatchesTemplate deals with spec.selector :
-// keep the ones set by the user
-// mimic Kubernetes selector 'job-name'
+// - keep the ones set by the user
+// - mimic Kubernetes selector 'job-name'
 func ensureJobSelectorMatchesTemplate(job *batchv1.Job) {
 	if job.Spec.Selector == nil {
 		job.Spec.Selector = &metav1.LabelSelector{
