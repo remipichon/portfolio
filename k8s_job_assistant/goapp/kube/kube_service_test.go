@@ -22,11 +22,17 @@ type KubeServiceIntegrationTestSuite struct {
 	Namespace string
 	// to easily cleanup resources, make sure to create all resources with these
 	TestLabels map[string]string
+	// Kubernetes resources lifecycle
+	tearDown      bool
+	keepResources bool
 }
 
 func (s *KubeServiceIntegrationTestSuite) SetupSuite() {
 	ctx := context.Background()
 	var err error
+
+	s.tearDown = TearDown
+	s.keepResources = KeepResources
 
 	// configure test suite
 	s.TestLabels = map[string]string{
@@ -38,7 +44,7 @@ func (s *KubeServiceIntegrationTestSuite) SetupSuite() {
 	s.ks = &Service{}
 	s.ks.InitClient()
 
-	if tearDown {
+	if s.tearDown {
 		fmt.Println("Running in tear-down mode because -tear-down")
 		s.TearDownSuite()
 		fmt.Println("Tear down has run, you can now re-run the test without -tear-down")
@@ -56,7 +62,7 @@ func (s *KubeServiceIntegrationTestSuite) SetupSuite() {
 }
 
 func (s *KubeServiceIntegrationTestSuite) TearDownTest() {
-	if keepResources {
+	if s.keepResources {
 		s.T().Logf("Skipping jobs deletion because keep-resources is set.")
 		return
 	}
@@ -97,7 +103,7 @@ func (s *KubeServiceIntegrationTestSuite) TearDownTest() {
 }
 
 func (s *KubeServiceIntegrationTestSuite) TearDownSuite() {
-	if keepResources {
+	if s.keepResources {
 		s.T().Logf("Skipping namespace deletion because keep-resources is set.")
 		return
 	}
@@ -136,7 +142,7 @@ func (s *KubeServiceIntegrationTestSuite) TestListJob() {
 	_, err := s.ks.kubeClient.BatchV1().Jobs("default").Create(context.Background(), job1, metav1.CreateOptions{})
 	s.Require().NoError(err, "failed to create job")
 
-	jobs, err := s.ks.list()
+	jobs, err := s.ks.List()
 	s.Require().NoError(err)
 
 	s.Assert().Len(jobs, 2)
@@ -153,7 +159,7 @@ func (s *KubeServiceIntegrationTestSuite) TestListJob() {
 }
 
 func (s *KubeServiceIntegrationTestSuite) TestRunJobNonExisting() {
-	err := s.ks.run(s.Namespace, "non-existing")
+	err := s.ks.Run(s.Namespace, "non-existing")
 	s.Require().Error(err)
 	s.Assert().Contains(err.Error(), "jobs.batch")
 	s.Assert().Contains(err.Error(), "not found")
@@ -167,12 +173,12 @@ func (s *KubeServiceIntegrationTestSuite) TestRunJobNonExisting() {
 	_, err = s.ks.kubeClient.BatchV1().Jobs("default").Create(context.Background(), validButUnschedulableJob, metav1.CreateOptions{})
 	s.Require().NoError(err, "failed to create job")
 
-	err := s.ks.run("default", s.BaseJobName)
+	err := s.ks.Run("default", s.BaseJobName)
 	s.Require().NoError(err)
 
 	//this test only care that the Job scheduled at least one pod
 	s.Require().Eventually(func() bool {
-		err, jobStatus := s.ks.status(s.Namespace, s.BaseJobName)
+		err, jobStatus := s.ks.Status(s.Namespace, s.BaseJobName)
 		s.Require().NoError(err)
 
 		if jobStatus.StartTime != nil {
@@ -188,7 +194,7 @@ func (s *KubeServiceIntegrationTestSuite) TestRunJobAfterCreate() {
 	job1, jobName := s.validJob("correct-job-run", s.TestLabels, 0)
 	s.createJob(job1, true)
 
-	err := s.ks.run(s.Namespace, jobName)
+	err := s.ks.Run(s.Namespace, jobName)
 	s.Require().NoError(err)
 
 	s.assertJobStarted(jobName)
@@ -231,7 +237,7 @@ func (s *KubeServiceIntegrationTestSuite) TestRunJobWithoutSuspend() {
 	//before running the actual test
 	s.waitForJobCompletion(s.Namespace, jobName, 20)
 
-	err := s.ks.run(s.Namespace, jobName)
+	err := s.ks.Run(s.Namespace, jobName)
 	s.Require().NoError(err)
 
 	s.assertJobStarted(jobName)
@@ -243,7 +249,7 @@ func (s *KubeServiceIntegrationTestSuite) TestRunJobAfterCompletion() {
 	s.createJob(job, true)
 
 	s.T().Logf("Run first time")
-	err := s.ks.run(s.Namespace, jobName)
+	err := s.ks.Run(s.Namespace, jobName)
 	s.Require().NoError(err)
 	s.assertJobStarted(jobName)
 	s.T().Logf("First run has started")
@@ -252,7 +258,7 @@ func (s *KubeServiceIntegrationTestSuite) TestRunJobAfterCompletion() {
 	s.T().Logf("First run has completed")
 
 	s.T().Logf("Run second time")
-	err = s.ks.run(s.Namespace, jobName)
+	err = s.ks.Run(s.Namespace, jobName)
 	s.Require().NoError(err)
 	s.assertJobStarted(jobName)
 	s.T().Logf("Second run has started, test is over")
@@ -264,13 +270,13 @@ func (s *KubeServiceIntegrationTestSuite) TestRunJobWhileRunning() {
 	s.createJob(job, true)
 
 	s.T().Logf("Run first time")
-	err := s.ks.run(s.Namespace, jobName)
+	err := s.ks.Run(s.Namespace, jobName)
 	s.Require().NoError(err)
 	s.assertJobStarted(jobName)
 	s.T().Logf("First run has started")
 
 	s.T().Logf("Run second time (without waiting for first completion")
-	err = s.ks.run(s.Namespace, jobName)
+	err = s.ks.Run(s.Namespace, jobName)
 	s.Require().Error(err, &JobAlreadyRunningError{})
 }
 
@@ -278,12 +284,12 @@ func (s *KubeServiceIntegrationTestSuite) TestKillJob() {
 	job, jobName := s.validJob("suspend-there-run-to-kill", s.TestLabels, 15)
 	s.createJob(job, true)
 
-	err := s.ks.run(s.Namespace, jobName)
+	err := s.ks.Run(s.Namespace, jobName)
 	s.Require().NoError(err)
 	s.assertJobStarted(jobName)
 	s.T().Logf("Run has started")
 
-	err = s.ks.kill(s.Namespace, jobName)
+	err = s.ks.Kill(s.Namespace, jobName)
 
 	job, err = s.ks.kubeClient.BatchV1().Jobs(s.Namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	s.Require().NoError(err)
@@ -293,7 +299,7 @@ func (s *KubeServiceIntegrationTestSuite) TestKillJob() {
 }
 
 func (s *KubeServiceIntegrationTestSuite) TestKillJobNonExisting() {
-	err := s.ks.kill(s.Namespace, "non-existing")
+	err := s.ks.Kill(s.Namespace, "non-existing")
 	s.Require().Error(err)
 	s.Assert().Contains(err.Error(), "jobs.batch")
 	s.Assert().Contains(err.Error(), "not found")
@@ -308,7 +314,7 @@ func TestKubeService(t *testing.T) {
 func (s *KubeServiceIntegrationTestSuite) assertJobStarted(jobName string) {
 	// this test only care that the Job scheduled at least one pod
 	s.Require().Eventually(func() bool {
-		err, jobStatus := s.ks.status(s.Namespace, jobName)
+		err, jobStatus := s.ks.Status(s.Namespace, jobName)
 		s.Require().NoError(err)
 
 		if jobStatus.StartTime != nil {
@@ -328,7 +334,7 @@ func (s *KubeServiceIntegrationTestSuite) waitForJobCompletion(namespace string,
 		case <-timeout:
 			s.FailNow("timed out waiting for Job to complete")
 		case <-tick:
-			err, jobStatus := s.ks.status(namespace, jobName)
+			err, jobStatus := s.ks.Status(namespace, jobName)
 			s.Require().NoError(err)
 
 			for _, condition := range jobStatus.Conditions {
