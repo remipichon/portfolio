@@ -306,6 +306,24 @@ func (s *KubeServiceIntegrationTestSuite) TestKillJob() {
 
 }
 
+func (s *KubeServiceIntegrationTestSuite) TestRunAfterKillJob() {
+	job, jobName := s.validJob("suspend-there-run-after-kill", s.TestLabels, 15)
+	s.createJob(job, true)
+
+	err := s.ks.Run(s.Namespace, jobName)
+	s.Require().NoError(err)
+	s.assertJobStarted(jobName)
+	s.T().Logf("Run has started")
+
+	err = s.ks.Kill(s.Namespace, jobName)
+
+	err = s.ks.Run(s.Namespace, jobName)
+	s.Require().NoError(err)
+	s.assertJobStarted(jobName)
+	s.T().Logf("Run has started")
+
+}
+
 func (s *KubeServiceIntegrationTestSuite) TestKillJobNonExisting() {
 	err := s.ks.Kill(s.Namespace, "non-existing")
 	s.Require().Error(err)

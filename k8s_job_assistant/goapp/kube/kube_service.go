@@ -195,7 +195,7 @@ func isJobRunning(status batchv1.JobStatus) bool {
 	}
 
 	for _, cond := range status.Conditions {
-		if (cond.Type == batchv1.JobComplete || cond.Type == batchv1.JobFailed) && cond.Status == corev1.ConditionTrue {
+		if (cond.Type == batchv1.JobComplete || cond.Type == batchv1.JobFailed || cond.Type == batchv1.JobSuspended) && cond.Status == corev1.ConditionTrue {
 			return false // Already completed or failed
 		}
 	}
