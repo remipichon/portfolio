@@ -36,13 +36,14 @@ func (s *KubeServiceIntegrationTestSuite) SetupSuite() {
 
 	// configure test suite
 	s.TestLabels = map[string]string{
-		"testing-labels": "k8s-job-assistant",
+		"testing-labels": "under-test-k8s-job-assistant",
 	}
 	s.Namespace = "kja-test-namespace"
 
 	// init Kube client
 	s.ks = &Service{}
 	s.ks.InitClient()
+	s.ks.SetJobAssistAnnotation("under-test-for-job-assist")
 
 	if s.tearDown {
 		fmt.Println("Running in tear-down mode because -tear-down")
@@ -158,6 +159,13 @@ func (s *KubeServiceIntegrationTestSuite) TestListJob() {
 	s.Assert().Contains(ns, "default")
 }
 
+func (s *KubeServiceIntegrationTestSuite) TestListJobEmpty() {
+	jobs, err := s.ks.List()
+	s.Require().NoError(err)
+
+	s.Assert().Len(jobs, 0)
+}
+
 func (s *KubeServiceIntegrationTestSuite) TestRunJobNonExisting() {
 	err := s.ks.Run(s.Namespace, "non-existing")
 	s.Require().Error(err)
@@ -207,7 +215,7 @@ func (s *KubeServiceIntegrationTestSuite) TestRunJobWithoutSuspend() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,
 			Annotations: map[string]string{
-				"job-assistant": "enable",
+				s.ks.jobAssistAnnotation: "enable",
 			},
 			Labels: s.TestLabels,
 		},
@@ -382,7 +390,7 @@ func (s *KubeServiceIntegrationTestSuite) validJob(jobName string, testLabels ma
 		ObjectMeta: metav1.ObjectMeta{
 			Name: jobName,
 			Annotations: map[string]string{
-				"job-assistant": "enable",
+				s.ks.jobAssistAnnotation: "enable",
 			},
 			Labels: testLabels,
 		},

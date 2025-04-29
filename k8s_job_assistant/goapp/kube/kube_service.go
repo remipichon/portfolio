@@ -21,7 +21,8 @@ import (
 
 // Service provides helper methods to interact with Kubernetes Jobs.
 type Service struct {
-	kubeClient *kubernetes.Clientset
+	kubeClient          *kubernetes.Clientset
+	jobAssistAnnotation string
 }
 
 // InitClient instantiate a Kubernetes client based on local kubeconfig.
@@ -46,6 +47,14 @@ func (ks *Service) InitClient() {
 
 }
 
+// SetJobAssistAnnotation configures the annotation used to take ownerships of Jobs
+//
+// Only Jobs with this annotation will be considered
+func (ks *Service) SetJobAssistAnnotation(jobAssistAnnotation string) {
+	fmt.Println(fmt.Sprintf("Setting JobAssist annotation to %s (only job with annotation %s=enabled will be considered)", jobAssistAnnotation, jobAssistAnnotation))
+	ks.jobAssistAnnotation = jobAssistAnnotation
+}
+
 // List lists Jobs with annotation 'job-assistant' set to true on any namespace.
 func (ks *Service) List() ([]batchv1.Job, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -58,7 +67,7 @@ func (ks *Service) List() ([]batchv1.Job, error) {
 
 	var filtered []batchv1.Job
 	for _, job := range jobs.Items {
-		if val, ok := job.Annotations["job-assistant"]; ok && val == "enable" {
+		if val, ok := job.Annotations[ks.jobAssistAnnotation]; ok && val == "enable" {
 			filtered = append(filtered, job)
 		}
 	}
