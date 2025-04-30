@@ -1,39 +1,78 @@
-import React, { useEffect, useState } from "react";
+import React, {useEffect, useState} from "react";
+
 
 type Job = {
-    name: string;
     namespace: string;
-    status: "suspended" | "running" | "failed" | "scheduled";
+    name: string;
+    lastSuccessfullyRunStarTime?: Date;
+    lastStatus: {
+        type: string;
+        message?: string;
+    };
+    lastSuccessfullyRunCompletionTime?: Date;
 };
 
 export function App() {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
+    const [lastFetchJobs, setLastFetchJobs] = useState<Date | null>(null);
 
     const fetchJobs = async () => {
         setLoading(true);
-        const res = await fetch("/list");
-        const data = await res.json();
-        setJobs(
-            data["jobs"].map((job: any) => ({
-                name: job.name,
-                namespace: job.namespace,
-                status: getJobStatus(job),
-            }))
-        );
+
+        const jobsRaw = await fetch("/list").then(res => res.json());
+        const jobs: Job[] = jobsRaw["jobs"].map(parseJob);
+        setJobs(jobs);
         setLoading(false);
+        setLastFetchJobs(new Date());
     };
+
+    const parseJob = (raw: any): Job => ({
+        ...raw,
+        lastSuccessfullyRunStarTime: raw.lastSuccessfullyRunStarTime ? new Date(raw.lastSuccessfullyRunStarTime) : undefined,
+        lastSuccessfullyRunCompletionTime: raw.lastSuccessfullyRunCompletionTime ? new Date(raw.lastSuccessfullyRunCompletionTime) : undefined,
+    });
 
     useEffect(() => {
+        // Fetch initially
         fetchJobs();
+
+        // Set up visibility change listener
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.info("Tab just got visible, perform reload");
+                fetchJobs();
+            }
+        };
+
+        console.info("Add visibilitychange event listener");
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Set up polling
+        const intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                console.info("Polling fetchJobs every 5s");
+                fetchJobs();
+            }
+        }, 5000);
+
+        // Cleanup on unmount
+        return () => {
+            console.info("Disable Polling fetchJobs every 5s");
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            clearInterval(intervalId);
+        };
     }, []);
 
-    const getJobStatus = (job: any): Job["status"] => {
-        if (job.spec?.suspend === true) return "suspended";
-        if (job.status?.active > 0) return "running";
-        if (job.status?.failed > 0) return "failed";
-        return "scheduled";
+    // refresh when the tab get the focus
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+            console.log("Tab just got visible, perform reload")
+            fetchJobs()
+        }
     };
+
+
 
     const runJob = async (namespace: string, name: string) => {
         await fetch(`/run/${namespace}/${name}`);
@@ -46,17 +85,21 @@ export function App() {
     };
 
     return (
-        <div style={{ padding: "2rem", fontFamily: "Arial, sans-serif" }}>
+        <div style={{padding: "2rem", fontFamily: "Arial, sans-serif"}}>
             <h2>Job Assistant</h2>
-            {loading ? (
+            {lastFetchJobs && (
+                <p>Last fetch: {lastFetchJobs.toLocaleTimeString()}</p>
+            )}            {loading ? (
                 <p>Loading jobs...</p>
             ) : (
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table style={{width: "100%", borderCollapse: "collapse"}}>
                     <thead>
                     <tr>
                         <th style={thStyle}>Namespace</th>
                         <th style={thStyle}>Name</th>
                         <th style={thStyle}>Status</th>
+                        <th style={thStyle}>Start time</th>
+                        <th style={thStyle}>Completion time</th>
                         <th style={thStyle}>Actions</th>
                     </tr>
                     </thead>
@@ -65,19 +108,24 @@ export function App() {
                         <tr key={`${job.namespace}-${job.name}`}>
                             <td style={tdStyle}>{job.namespace}</td>
                             <td style={tdStyle}>{job.name}</td>
-                            <td style={tdStyle}>{job.status}</td>
+                            <td style={tdStyle}>{job.lastStatus?.type} - {job.lastStatus?.message}</td>
+                            <td style={tdStyle}>{job.lastSuccessfullyRunStarTime?.toLocaleTimeString()}</td>
+                            <td style={tdStyle}>{job.lastSuccessfullyRunCompletionTime?.toLocaleTimeString()}</td>
                             <td style={tdStyle}>
                                 <button
                                     onClick={() => runJob(job.namespace, job.name)}
-                                    disabled={job.status === "running" || job.status === "scheduled"}
+                                    disabled={job.lastStatus.type === "Running"}
                                     style={buttonStyle}
                                 >
                                     Run
                                 </button>
                                 <button
                                     onClick={() => killJob(job.namespace, job.name)}
-                                    disabled={job.status !== "running"}
-                                    style={{ ...buttonStyle, marginLeft: "0.5rem" }}
+                                    disabled={job.lastStatus.type !== "Running"}
+                                    style={{
+                                        ...buttonStyle,
+                                        marginLeft: "0.5rem"
+                                    }}
                                 >
                                     Kill
                                 </button>
