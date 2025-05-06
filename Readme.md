@@ -16,8 +16,8 @@ doing.
 
 # What I am working on now
 
-A "Kubernetes Job Assistant" to offer an **easy to use UI** for **non-tech people**
+A [Kubernetes Job Assistant](k8s_job_assistant) to offer an **easy to use UI** for **non-tech people**
 to run/kill/tail Kubernetes jobs. 
 
-There are toon of tools to do this already, this project to learn and showcase
+There are many ways to do this already, this project is to learn and showcase
 what I can do with Golang.
