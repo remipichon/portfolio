@@ -1,0 +1,10 @@
+namespace: kja-demo
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+images:
+  - name: kja
+#    newName: docker.io/remipichon/kja
+    newTag: latest
