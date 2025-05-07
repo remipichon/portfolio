@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dummy-job-5s
+  annotations:
+    job-assistant: enable   # to delegate the lifecycle to KJA
+spec:
+  suspend: true             # to delay the run
+  template:
+    spec:
+      containers:
+        - name: some-awesomely-tested-job
+          image: busybox
+          command: ["sh", "-c", "echo This is my awesome task which lasts 5 seconds!; sleep 5; echo This is the end of my awesome task"]
+      restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dummy-job-30s
+  annotations:
+    job-assistant: enable   # to delegate the lifecycle to KJA
+spec:
+  suspend: true             # to delay the run
+  template:
+    spec:
+      containers:
+        - name: some-awesomely-tested-job
+          image: busybox
+          command: ["sh", "-c", "echo This is my awesome task which lasts 30s!; sleep 30; echo This is the end of my awesome task"]
+      restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dummy-job-1m
+  annotations:
+    job-assistant: enable   # to delegate the lifecycle to KJA
+spec:
+  suspend: true             # to delay the run
+  template:
+    spec:
+      containers:
+        - name: some-awesomely-tested-job
+          image: busybox
+          command: ["sh", "-c", "echo This is my awesome task which lasts 1 minute!; sleep 60; echo This is the end of my awesome task"]
+      restartPolicy: Never

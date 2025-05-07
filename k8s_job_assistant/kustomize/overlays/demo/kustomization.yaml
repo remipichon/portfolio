@@ -3,6 +3,7 @@ namespace: kja-demo
 resources:
   - ../../base
   - namespace.yaml
+  - dummy-jobs.yaml
 
 images:
   - name: kja
