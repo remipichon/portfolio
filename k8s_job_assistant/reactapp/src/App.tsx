@@ -12,26 +12,6 @@ type Job = {
     lastSuccessfullyRunCompletionTime?: Date;
 };
 
-const errorStyle: React.CSSProperties = {
-    backgroundColor: "#ffe0e0",
-    color: "#a00",
-    padding: "10px",
-    border: "1px solid #f5c2c2",
-    borderRadius: "4px",
-    marginBottom: "1rem",
-    position: "relative",
-};
-
-const dismissButtonStyle: React.CSSProperties = {
-    position: "absolute",
-    right: "10px",
-    top: "5px",
-    background: "transparent",
-    border: "none",
-    fontSize: "18px",
-    cursor: "pointer",
-};
-
 export function App() {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
@@ -40,34 +20,33 @@ export function App() {
 
     useEffect(() => {
         // Fetch initially
-        fetchJobs();
+        fetchJobs().catch(console.error);
 
-        // Set up visibility change listener
+        // Set up visibility change listener to refresh the list only when the tab is active
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 console.info("Tab just got visible, perform reload");
-                fetchJobs();
+                fetchJobs().catch(console.error);;
             }
         };
-
         console.info("Add visibilitychange event listener");
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Set up polling
+        // Set up polling to refresh the list every 5s (when the tab is active)
         const intervalId = setInterval(() => {
             if (document.visibilityState === 'visible') {
                 console.info("Polling fetchJobs every 5s");
-                fetchJobs();
+                fetchJobs().catch(console.error);;
             }
         }, 5000);
 
-        // Cleanup error
+        // Cleanup error notification
         if (error) {
             const timer = setTimeout(() => setError(null), 20000);
             return () => clearTimeout(timer);
         }
 
-        // Cleanup on unmount
+        // Cleanup auto refresh Job list on unmount (tab is no longer active)
         return () => {
             console.info("Disable Polling fetchJobs every 5s");
             document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -75,7 +54,7 @@ export function App() {
         };
     }, [error]);
 
-    // refresh when the tab get the focus
+    // Refresh the list when the tab get the focus
     const handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
             console.log("Tab just got visible, perform reload")
@@ -91,7 +70,6 @@ export function App() {
                 const text = await res.text();
                 throw new Error(`Error ${res.status}: ${text}`);
             }
-
             const jobsRaw = await res.json();
             const jobs: Job[] = jobsRaw["jobs"].map(parseJob);
             setJobs(jobs);
@@ -114,7 +92,6 @@ export function App() {
         lastSuccessfullyRunStarTime: raw.lastSuccessfullyRunStarTime ? new Date(raw.lastSuccessfullyRunStarTime) : undefined,
         lastSuccessfullyRunCompletionTime: raw.lastSuccessfullyRunCompletionTime ? new Date(raw.lastSuccessfullyRunCompletionTime) : undefined,
     });
-
 
     const performJobAction = async (path: string) => {
         try {
@@ -222,6 +199,26 @@ const buttonStyle: React.CSSProperties = {
     borderRadius: "4px",
     border: "1px solid #ccc",
     backgroundColor: "#f5f5f5",
+    cursor: "pointer",
+};
+
+const errorStyle: React.CSSProperties = {
+    backgroundColor: "#ffe0e0",
+    color: "#a00",
+    padding: "10px",
+    border: "1px solid #f5c2c2",
+    borderRadius: "4px",
+    marginBottom: "1rem",
+    position: "relative",
+};
+
+const dismissButtonStyle: React.CSSProperties = {
+    position: "absolute",
+    right: "10px",
+    top: "5px",
+    background: "transparent",
+    border: "none",
+    fontSize: "18px",
     cursor: "pointer",
 };
 
