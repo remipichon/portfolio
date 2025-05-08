@@ -4,8 +4,9 @@ on:
   push:
     branches:
       - master
-#    paths:
-#      - k8s_job_assistant
+    paths:
+      - k8s_job_assistant
+      - .github/workflows/build-and-push-kja.yml
 
 jobs:
   build-and-push:
@@ -35,4 +36,4 @@ jobs:
           file: k8s_job_assistant/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: docker.io/remipichon/kja:latest
+          tags: docker.io/remipichon/kja:1.0.0

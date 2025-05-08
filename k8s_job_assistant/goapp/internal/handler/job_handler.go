@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"goapp/internal/model"
 	"goapp/internal/service"
@@ -11,6 +12,7 @@ func DecorateRouterWithJobHandlers(router *gin.Engine, jobSvc service.JobService
 	router.GET("/list", func(c *gin.Context) {
 		jobs, err := jobSvc.ListDecoratedJobs()
 		if err != nil {
+			fmt.Println(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -30,6 +32,7 @@ func DecorateRouterWithJobHandlers(router *gin.Engine, jobSvc service.JobService
 			return
 		}
 		if err := jobSvc.Run(namespace, name); err != nil {
+			fmt.Println(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -44,6 +47,7 @@ func DecorateRouterWithJobHandlers(router *gin.Engine, jobSvc service.JobService
 			return
 		}
 		if err := jobSvc.Kill(namespace, name); err != nil {
+			fmt.Println(err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

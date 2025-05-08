@@ -66,8 +66,57 @@ Then you can run the following test.
 cd goapp
 go test -v ./... -kubeconfig .kja-sa-kubeconfig-test.yaml
 ```
-
 > `make backend-test` does the SA setup + run the test
+
+Existing tests: 
+```
+cd goapp && go test -v ./... -kubeconfig ./kja-sa-kubeconfig-test.yaml
+?   	goapp	[no test files]
+?   	goapp/internal/handler	[no test files]
+=== RUN   TestKubeService
+Starting Job Manager tests in namespace kja-test-resources with labels map[testing-labels:under-test-k8s-job-assistant] and KJA annotation under-test-for-job-assist
+=== RUN   TestKubeService/TestKillJob
+    job_manager_test.go:327: Run has started
+=== RUN   TestKubeService/TestKillJobNonExisting
+=== RUN   TestKubeService/TestListJob
+=== RUN   TestKubeService/TestListJobEmpty
+=== RUN   TestKubeService/TestListJobStatusSuspended
+=== RUN   TestKubeService/TestRunAfterKillJob
+    job_manager_test.go:346: Run has started
+    job_manager_test.go:354: Run has started
+=== RUN   TestKubeService/TestRunJobAfterCompletion
+    job_manager_test.go:288: Run first time
+    job_manager_test.go:292: First run has started
+    job_manager_test.go:295: First run has completed
+    job_manager_test.go:297: Run second time
+    job_manager_test.go:301: Second run has started, test is over
+=== RUN   TestKubeService/TestRunJobAfterCreate
+=== RUN   TestKubeService/TestRunJobNonExisting
+=== RUN   TestKubeService/TestRunJobWhileRunning
+    job_manager_test.go:309: Run first time
+    job_manager_test.go:313: First run has started
+    job_manager_test.go:315: Run second time (without waiting for first completion
+=== RUN   TestKubeService/TestRunJobWithoutSuspend
+=== RUN   TestKubeService/TestSetup
+Wait for namespace to be deleted (timeout 30s) run 'go test -tear-down' to keep trying if it times out:  kja-test-resources
+--- PASS: TestKubeService (49.09s)
+    --- PASS: TestKubeService/TestKillJob (2.90s)
+    --- PASS: TestKubeService/TestKillJobNonExisting (0.00s)
+    --- PASS: TestKubeService/TestListJob (0.20s)
+    --- PASS: TestKubeService/TestListJobEmpty (0.60s)
+    --- PASS: TestKubeService/TestListJobStatusSuspended (0.80s)
+    --- PASS: TestKubeService/TestRunAfterKillJob (18.58s)
+    --- PASS: TestKubeService/TestRunJobAfterCompletion (5.39s)
+    --- PASS: TestKubeService/TestRunJobAfterCreate (1.60s)
+    --- PASS: TestKubeService/TestRunJobNonExisting (0.60s)
+    --- PASS: TestKubeService/TestRunJobWhileRunning (1.80s)
+    --- PASS: TestKubeService/TestRunJobWithoutSuspend (5.40s)
+    --- PASS: TestKubeService/TestSetup (0.40s)
+PASS
+ok  	goapp/internal/kube	49.413s
+?   	goapp/internal/model	[no test files]
+?   	goapp/internal/service	[no test files]
+```
 
 ### Keep resources
 The test setups the needed resources and tear them down after testing. You can

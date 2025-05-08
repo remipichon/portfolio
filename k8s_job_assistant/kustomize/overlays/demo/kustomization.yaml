@@ -7,5 +7,5 @@ resources:
 
 images:
   - name: kja
-#    newName: docker.io/remipichon/kja
-    newTag: latest
+    newName: docker.io/remipichon/kja
+    newTag: 1.0.0

@@ -8,8 +8,8 @@ backend-test : setup-test ## Run the backend test
 	cd goapp && go test -v ./... -kubeconfig ./kja-sa-kubeconfig-test.yaml
 
 tear-down-test:  ## Tear down the least privilege SA for testing backend
-	rm goapp/kja-sa-kubeconfig-test.yaml
 	kubectl delete -k kustomize/backend-testing
+	rm goapp/internal/kja-sa-kubeconfig-test.yaml
 
 backend: setup-test ## Run the Go app
 	cd goapp && go run main.go -kubeconfig ./kja-sa-kubeconfig-test.yaml
