@@ -17,50 +17,42 @@ export function App() {
     const [loading, setLoading] = useState(true);
     const [lastFetchJobs, setLastFetchJobs] = useState<Date | null>(null);
     const [error, setError] = useState<{ code: number, message: string } | null>(null);
+    const [pollingDisabled, setPollingDisabled] = useState(false);
 
     useEffect(() => {
-        // Fetch initially
+        // Initial fetch
         fetchJobs().catch(console.error);
 
-        // Set up visibility change listener to refresh the list only when the tab is active
+        // Visibility refresh
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 console.info("Tab just got visible, perform reload");
-                fetchJobs().catch(console.error);;
+                fetchJobs().catch(console.error);
             }
         };
-        console.info("Add visibilitychange event listener");
         document.addEventListener('visibilitychange', handleVisibilityChange);
 
-        // Set up polling to refresh the list every 5s (when the tab is active)
+        // Polling every 5s
         const intervalId = setInterval(() => {
-            if (document.visibilityState === 'visible') {
+            if (document.visibilityState === 'visible' && !pollingDisabled) {
                 console.info("Polling fetchJobs every 5s");
-                fetchJobs().catch(console.error);;
+                fetchJobs().catch(console.error);
             }
         }, 5000);
 
-        // Cleanup error notification
-        if (error) {
-            const timer = setTimeout(() => setError(null), 20000);
-            return () => clearTimeout(timer);
-        }
-
-        // Cleanup auto refresh Job list on unmount (tab is no longer active)
         return () => {
-            console.info("Disable Polling fetchJobs every 5s");
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             clearInterval(intervalId);
         };
-    }, [error]);
+    }, [pollingDisabled]);
 
-    // Refresh the list when the tab get the focus
-    const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-            console.log("Tab just got visible, perform reload")
-            fetchJobs()
-        }
-    };
+
+    useEffect(() => {
+        if (!error) return;
+
+        const timer = setTimeout(() => setError(null), 20000);
+        return () => clearTimeout(timer);
+    }, [error]);
 
     const fetchJobs = async () => {
         setLoading(true);
@@ -78,9 +70,11 @@ export function App() {
             console.error("Fetch failed:", err);
             const match = err.message.match(/Error (\d+): (.*)/);
             if (match) {
-                setError({ code: parseInt(match[1]), message: JSON.parse(match[2]).error });
+                setError({ code: parseInt(match[1]), message: `Polling is disable because of '${JSON.parse(match[2]).error}', try refreshing the page` });
+                setPollingDisabled(true);
             } else {
-                setError({ code: 500, message: "Unknown error" });
+                setError({ code: 500, message: "Polling is disable because of an Unknown error, try refreshing the page" });
+                setPollingDisabled(true);
             }
         } finally {
             setLoading(false);
