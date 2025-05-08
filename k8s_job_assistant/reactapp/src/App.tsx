@@ -12,26 +12,31 @@ type Job = {
     lastSuccessfullyRunCompletionTime?: Date;
 };
 
+const errorStyle: React.CSSProperties = {
+    backgroundColor: "#ffe0e0",
+    color: "#a00",
+    padding: "10px",
+    border: "1px solid #f5c2c2",
+    borderRadius: "4px",
+    marginBottom: "1rem",
+    position: "relative",
+};
+
+const dismissButtonStyle: React.CSSProperties = {
+    position: "absolute",
+    right: "10px",
+    top: "5px",
+    background: "transparent",
+    border: "none",
+    fontSize: "18px",
+    cursor: "pointer",
+};
+
 export function App() {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [loading, setLoading] = useState(true);
     const [lastFetchJobs, setLastFetchJobs] = useState<Date | null>(null);
-
-    const fetchJobs = async () => {
-        setLoading(true);
-
-        const jobsRaw = await fetch("/list").then(res => res.json());
-        const jobs: Job[] = jobsRaw["jobs"].map(parseJob);
-        setJobs(jobs);
-        setLoading(false);
-        setLastFetchJobs(new Date());
-    };
-
-    const parseJob = (raw: any): Job => ({
-        ...raw,
-        lastSuccessfullyRunStarTime: raw.lastSuccessfullyRunStarTime ? new Date(raw.lastSuccessfullyRunStarTime) : undefined,
-        lastSuccessfullyRunCompletionTime: raw.lastSuccessfullyRunCompletionTime ? new Date(raw.lastSuccessfullyRunCompletionTime) : undefined,
-    });
+    const [error, setError] = useState<{ code: number, message: string } | null>(null);
 
     useEffect(() => {
         // Fetch initially
@@ -56,13 +61,19 @@ export function App() {
             }
         }, 5000);
 
+        // Cleanup error
+        if (error) {
+            const timer = setTimeout(() => setError(null), 20000);
+            return () => clearTimeout(timer);
+        }
+
         // Cleanup on unmount
         return () => {
             console.info("Disable Polling fetchJobs every 5s");
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             clearInterval(intervalId);
         };
-    }, []);
+    }, [error]);
 
     // refresh when the tab get the focus
     const handleVisibilityChange = () => {
@@ -72,20 +83,74 @@ export function App() {
         }
     };
 
+    const fetchJobs = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch("/list");
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`Error ${res.status}: ${text}`);
+            }
 
-
-    const runJob = async (namespace: string, name: string) => {
-        await fetch(`/run/${namespace}/${name}`);
-        fetchJobs();
+            const jobsRaw = await res.json();
+            const jobs: Job[] = jobsRaw["jobs"].map(parseJob);
+            setJobs(jobs);
+            setLastFetchJobs(new Date());
+        } catch (err: any) {
+            console.error("Fetch failed:", err);
+            const match = err.message.match(/Error (\d+): (.*)/);
+            if (match) {
+                setError({ code: parseInt(match[1]), message: JSON.parse(match[2]).error });
+            } else {
+                setError({ code: 500, message: "Unknown error" });
+            }
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const killJob = async (namespace: string, name: string) => {
-        await fetch(`/kill/${namespace}/${name}`);
-        fetchJobs();
+    const parseJob = (raw: any): Job => ({
+        ...raw,
+        lastSuccessfullyRunStarTime: raw.lastSuccessfullyRunStarTime ? new Date(raw.lastSuccessfullyRunStarTime) : undefined,
+        lastSuccessfullyRunCompletionTime: raw.lastSuccessfullyRunCompletionTime ? new Date(raw.lastSuccessfullyRunCompletionTime) : undefined,
+    });
+
+
+    const performJobAction = async (path: string) => {
+        try {
+            const res = await fetch(path);
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`Error ${res.status}: ${text}`);
+            }
+            await fetchJobs();
+        } catch (err: any) {
+            console.error("Job action failed:", err);
+            const match = err.message.match(/Error (\d+): (.*)/);
+            if (match) {
+                setError({ code: parseInt(match[1]), message: JSON.parse(match[2]).error });
+            } else {
+                setError({ code: 500, message: "Unknown error" });
+            }
+        }
     };
+
+    const runJob = (namespace: string, name: string) =>
+        performJobAction(`/run/${namespace}/${name}`);
+
+    const killJob = (namespace: string, name: string) =>
+        performJobAction(`/kill/${namespace}/${name}`);
 
     return (
         <div style={{padding: "2rem", fontFamily: "Arial, sans-serif"}}>
+            {error && (
+                <div style={errorStyle}>
+                    <span>
+                        ⚠ Error {error.code}: {error.message}
+                    </span>
+                    <button onClick={() => setError(null)} style={dismissButtonStyle}>×</button>
+                </div>
+            )}
             <h2>Job Assistant</h2>
             {lastFetchJobs && (
                 <p>Last fetch: {lastFetchJobs.toLocaleTimeString()}</p>
