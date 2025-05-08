@@ -46,7 +46,7 @@ to the [ClusterRole](kustomize/base/cluster-role.yaml) used for the production s
 To generate those K8s resources and the associated KubeConfig :
 ```bash 
 kubectl apply -k kustomize/backend-testing
-bash kustomize/backend-testing/seed_kubeconfig.sh > goapp/kja-sa-kubeconfig-test.yaml
+bash kustomize/backend-testing/seed_kubeconfig.sh > goapp/internal/kube/kja-sa-kubeconfig-test.yaml
 ```
 > This is where you need a valid KubeConfig with enough permissions 
 > the Make target `make setup-test` does it for you, `make backend` depends on it.
@@ -64,14 +64,16 @@ Then you can run the following test.
 ### Run the tests
 ```bash
 cd goapp
-go test ./.. -kubeconfig ./kja-sa-kubeconfig-test.yaml
+go test -v ./... -kubeconfig .kja-sa-kubeconfig-test.yaml
 ```
+
+> `make backend-test` does the SA setup + run the test
 
 ### Keep resources
 The test setups the needed resources and tear them down after testing. You can
 disable the tearing down to investigate tests cases with :
 ```bash
-go test ./... -keep-resources -kubeconfig ./kja-sa-kubeconfig-test.yaml
+go test ./... -keep-resources -kubeconfig .kja-sa-kubeconfig-test.yaml
 ```
 
 ### Tear down resources
@@ -85,7 +87,7 @@ Messages:   	failed to create namespace
 
 Simply manually clean up the resources before running the tests suite
 ```bash
-go test ./... -tear-down -kubeconfig ./kja-sa-kubeconfig-test.yaml
+go test ./... -tear-down -kubeconfig .kja-sa-kubeconfig-test.yaml
 ```
 
 This flag is a bit sketchy. To not clutter the test suite, it simply panics

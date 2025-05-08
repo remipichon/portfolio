@@ -1,21 +1,35 @@
 package main
 
 import (
+	"flag"
 	"github.com/gin-gonic/gin"
 	"goapp/internal/handler"
 	"goapp/internal/kube"
 	"goapp/internal/service"
+	"k8s.io/client-go/util/homedir"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 func main() {
 
+	// Optional flag for kubeconfig
+	var kubeconfigPath string
+	if home := homedir.HomeDir(); home != "" {
+		flag.StringVar(&kubeconfigPath, "kubeconfig", filepath.Join(home, ".kube", "config"),
+			"(optional) absolute path to the kubeconfig file")
+	} else {
+		flag.StringVar(&kubeconfigPath, "kubeconfig", "",
+			"(optional) absolute path to the kubeconfig file")
+	}
+	flag.Parse()
+
 	router := gin.Default()
 
 	// Setup Job Manager, Service and http Handler
-	jobManager := kube.NewJobManager(kube.InitKubeClient(), "job-assistant")
+	jobManager := kube.NewJobManager(kube.InitKubeClient(kubeconfigPath), "job-assistant")
 	jobService := service.NewJobService(jobManager)
 	handler.DecorateRouterWithJobHandlers(router, jobService)
 

@@ -11,12 +11,14 @@ import (
 var (
 	TearDown      bool
 	KeepResources bool
+	Kubeconfig    string
 )
 
 func TestMain(m *testing.M) {
 	// Custom flag to keep resources
 	flag.BoolVar(&KeepResources, "keep-resources", false, "Keep test resources after test run")
 	flag.BoolVar(&TearDown, "tear-down", false, "Attempt to deleteJobAndWaitForDeletion resources before testing, in case of leftovers")
+	flag.StringVar(&Kubeconfig, "kubeconfig", "", "path to kubeconfig for test")
 	flag.Parse()
 
 	if TearDown {

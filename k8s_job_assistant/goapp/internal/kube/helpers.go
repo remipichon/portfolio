@@ -1,13 +1,10 @@
 package kube
 
 import (
-	"flag"
 	"fmt"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/homedir"
-	"path/filepath"
 )
 
 func newTrue() *bool {
@@ -20,20 +17,9 @@ func newFalse() *bool {
 	return &b
 }
 
-// InitClient instantiate a Kubernetes client based on local kubeconfig if exists
+// InitKubeClient instantiate a Kubernetes client based on given kubeconfigPath if exists
 // or default to in-cluster config
-func InitKubeClient() *kubernetes.Clientset {
-	var kubeconfigPath string
-
-	// Optional flag for kubeconfig
-	if home := homedir.HomeDir(); home != "" {
-		flag.StringVar(&kubeconfigPath, "kubeconfig", filepath.Join(home, ".kube", "config"),
-			"(optional) absolute path to the kubeconfig file")
-	} else {
-		flag.StringVar(&kubeconfigPath, "kubeconfig", "",
-			"(optional) absolute path to the kubeconfig file")
-	}
-	flag.Parse()
+func InitKubeClient(kubeconfigPath string) *kubernetes.Clientset {
 
 	var config *rest.Config
 	var err error

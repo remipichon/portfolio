@@ -42,11 +42,13 @@ func (s *KubeServiceIntegrationTestSuite) SetupSuite() {
 	s.TestLabels = map[string]string{
 		"testing-labels": "under-test-k8s-job-assistant",
 	}
-	s.Namespace = "kja-test-namespace"
+	s.Namespace = "kja-test-resources"
 	s.jobAssistAnnotation = "under-test-for-job-assist"
 
+	fmt.Println(fmt.Sprintf("Starting Job Manager tests in namespace %s with labels %v and KJA annotation %s", s.Namespace, s.TestLabels, s.jobAssistAnnotation))
+
 	// init Kube client for tests assertions
-	s.kubeClient = InitKubeClient()
+	s.kubeClient = InitKubeClient(Kubeconfig)
 
 	// init component under test
 	s.jobMgr = NewJobManager(s.kubeClient, s.jobAssistAnnotation)
@@ -325,6 +327,7 @@ func (s *KubeServiceIntegrationTestSuite) TestKillJob() {
 	s.T().Logf("Run has started")
 
 	err = s.jobMgr.Kill(s.Namespace, jobName)
+	s.Require().NoError(err)
 
 	job, err = s.kubeClient.BatchV1().Jobs(s.Namespace).Get(context.Background(), jobName, metav1.GetOptions{})
 	s.Require().NoError(err)
@@ -343,6 +346,7 @@ func (s *KubeServiceIntegrationTestSuite) TestRunAfterKillJob() {
 	s.T().Logf("Run has started")
 
 	err = s.jobMgr.Kill(s.Namespace, jobName)
+	s.Require().NoError(err)
 
 	err = s.jobMgr.Run(s.Namespace, jobName)
 	s.Require().NoError(err)

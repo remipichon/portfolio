@@ -5,6 +5,7 @@ resources:
   - service_account.yaml
   - secret.yaml
   - ../base
+  - cluster-role-testing.yaml
   - cluster-role-binding.yaml
 
 patches:

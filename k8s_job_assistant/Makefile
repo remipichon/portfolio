@@ -1,13 +1,13 @@
 ############ Contribute
 
-setup-test:
+setup-test: ## Setup the least privilege SA for testing backend
 	kubectl apply -k kustomize/backend-testing
-	bash kustomize/backend-testing/seed_kubeconfig.sh > goapp/kja-sa-kubeconfig-test.yaml
+	bash kustomize/backend-testing/seed_kubeconfig.sh > goapp/internal/kube/kja-sa-kubeconfig-test.yaml
 
-backend-test : setup-test
-	cd goapp && go test ./.. -kubeconfig ./kja-sa-kubeconfig-test.yaml
+backend-test : setup-test ## Run the backend test
+	cd goapp && go test -v ./... -kubeconfig ./kja-sa-kubeconfig-test.yaml
 
-tear-down-test:
+tear-down-test:  ## Tear down the least privilege SA for testing backend
 	rm goapp/kja-sa-kubeconfig-test.yaml
 	kubectl delete -k kustomize/backend-testing
 

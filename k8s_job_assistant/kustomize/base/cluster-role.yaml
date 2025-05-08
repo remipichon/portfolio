@@ -5,4 +5,17 @@ metadata:
 rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list", "watch", "delete", "patch"]
+    verbs:
+        - get
+        - list
+        - create
+        - update
+        - watch
+        - delete
+        - patch
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs:
+      - get
+      - list
+      - deletecollection
