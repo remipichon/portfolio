@@ -1,10 +1,23 @@
 ############ Contribute
 
-backend:  ## Run the Go app
-	cd goapp && go run main.go
+setup-test:
+	kubectl apply -k kustomize/backend-testing
+	bash kustomize/backend-testing/seed_kubeconfig.sh > goapp/kja-sa-kubeconfig-test.yaml
+
+backend-test : setup-test
+	cd goapp && go test ./.. -kubeconfig ./kja-sa-kubeconfig-test.yaml
+
+tear-down-test:
+	rm goapp/kja-sa-kubeconfig-test.yaml
+	kubectl delete -k kustomize/backend-testing
+
+backend: setup-test ## Run the Go app
+	cd goapp && go run main.go -kubeconfig ./kja-sa-kubeconfig-test.yaml
 
 frontend:  ## Run the React app in dev mode
 	cd reactapp && npm install && npm run dev
+
+######## Demo
 
 build : ## Docker Build for local use
 	docker build -t kja:latest .
@@ -14,6 +27,7 @@ deploy: build ## Deploy into cluster (from kubectl and your defined kubeconfig)
 
 portfwd: deploy ## Create the port forward to access KJA from localhost:8080
 	kubectl port-forward -n kja-demo service/kube-job-assistant 8080:8080
+
 
 ############ Commons
 

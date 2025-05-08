@@ -1,0 +1,18 @@
+namespace: kja-test-deploy
+
+resources:
+  - namespace.yaml
+  - service_account.yaml
+  - secret.yaml
+  - ../base
+  - cluster-role-binding.yaml
+
+patches:
+  - path: deployment-scaled-to-zero.yaml
+    target:
+      kind: Deployment
+      name: kube-job-assistant
+
+labels:
+  - pairs:
+      app: kube-job-assistant-test-deploy
